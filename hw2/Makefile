@@ -1,7 +1,7 @@
 TARGET=mat_mul
 OBJECTS=timer.o
 
-CFLAGS=-std=c99 -O3 -Wall -lpthread -mavx -g -funroll-loops
+CFLAGS=-std=c99 -O3 -Wall -lpthread -mavx -funroll-loops
 LDFLAGS=-lm
 
 all: $(TARGET)

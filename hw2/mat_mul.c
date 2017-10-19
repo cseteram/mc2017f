@@ -12,12 +12,11 @@
 
 #define N 2048
 #define NUM_THREADS 16
-#define BSIZE 16
-#define BLOCK_SIZE (N / NUM_THREADS)
-#define NUM_TILES (N / BSIZE)
+#define TSIZE 16
+#define NUM_TILES (N / TSIZE)
 
-#define TILING
 // #define BASIC
+#define TILING
 
 bool print_matrix = false;
 bool validation = false;
@@ -30,8 +29,8 @@ void *thread_mat_mul(void *thread_id)
     long id = (long)thread_id;
 
 #ifdef TILING
-    int ii_chunk = BLOCK_SIZE / BSIZE;
-    float asub[BSIZE][BSIZE], bsub[BSIZE][BSIZE], csub[BSIZE][BSIZE];
+    int ii_chunk = N / TSIZE / NUM_THREADS;
+    float asub[TSIZE][TSIZE], bsub[TSIZE][TSIZE], csub[TSIZE][TSIZE];
     
     for (int ii = id * ii_chunk; ii < (id + 1) * ii_chunk; ++ii) {
         for (int jj = 0; jj < NUM_TILES; ++jj) {
@@ -40,16 +39,16 @@ void *thread_mat_mul(void *thread_id)
 
             for (int t = 0; t < NUM_TILES; ++t) {
                 // load asub, bsub <- a, b
-                for (int i = 0; i < BSIZE; ++i) {
-                    for (int j = 0; j < BSIZE; ++j) {
-                        asub[i][j] = a[ii * BSIZE + i][t * BSIZE + j];
-                        bsub[i][j] = b[t * BSIZE + i][jj * BSIZE + j];
+                for (int i = 0; i < TSIZE; ++i) {
+                    for (int j = 0; j < TSIZE; ++j) {
+                        asub[i][j] = a[ii * TSIZE + i][t * TSIZE + j];
+                        bsub[i][j] = b[t * TSIZE + i][jj * TSIZE + j];
                     }
                 }
                 // calculate csub
-                for (int i = 0; i < BSIZE; ++i) {
-                    for (int j = 0; j < BSIZE; ++j) {
-                        for (int k = 0; k < BSIZE; ++k) {
+                for (int i = 0; i < TSIZE; ++i) {
+                    for (int j = 0; j < TSIZE; ++j) {
+                        for (int k = 0; k < TSIZE; ++k) {
                             csub[i][j] += asub[i][k] * bsub[k][j];
                         }
                     }
@@ -57,9 +56,9 @@ void *thread_mat_mul(void *thread_id)
             }
 
             // store csub -> c
-            for (int i = 0; i < BSIZE; ++i) {
-                for (int j = 0; j < BSIZE; ++j) {
-                    c[ii * BSIZE + i][jj * BSIZE + j] = csub[i][j];
+            for (int i = 0; i < TSIZE; ++i) {
+                for (int j = 0; j < TSIZE; ++j) {
+                    c[ii * TSIZE + i][jj * TSIZE + j] = csub[i][j];
                 }
             }
         }
@@ -67,7 +66,8 @@ void *thread_mat_mul(void *thread_id)
 #endif
 
 #ifdef BASIC
-    for (int i = id * BLOCK_SIZE; i < (id + 1) * BLOCK_SIZE; ++i) {
+    int i_chunk = N / NUM_THREADS;
+    for (int i = id * i_chunk; i < (id + 1) * i_chunk; ++i) {
         for (int k = 0; k < N; ++k) {
             register float val = a[i][k];
 
