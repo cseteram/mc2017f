@@ -8,13 +8,15 @@
 
 #include <CL/cl.h>
 
-#define N 8192
-
 #define CHECK_ERROR(err) \
     if (err != CL_SUCCESS) { \
         printf("[%s:%d] OpenCL error %d\n", __FILE__, __LINE__, err); \
         exit(EXIT_FAILURE); \
     }
+
+#define N 8192
+// #define BASIC
+#define TILING
 
 bool print_matrix = false;
 bool validation = false;
@@ -84,7 +86,12 @@ void setup_opencl()
         free(log);
         exit(EXIT_FAILURE);
     }
+#ifdef BASIC
+    kernel = clCreateKernel(program, "mat_mul", NULL);
+#endif
+#ifdef TILING
     kernel = clCreateKernel(program, "mat_mul_t64", NULL);
+#endif
  
     /* Create buffer */
     bufA = clCreateBuffer(
@@ -127,8 +134,14 @@ void mat_mul()
     clSetKernelArg(kernel, 5, sizeof(int), &R);
 
     /* Launch the kernel */
+#ifdef BASIC
+    size_t global_size[] = {R, P};
+    size_t local_size[] = {16, 16};
+#endif
+#ifdef TILING
     size_t global_size[] = {R >> 2, P >> 2};
     size_t local_size[] = {16, 16};
+#endif
     clEnqueueNDRangeKernel(
         queue, kernel, 2, NULL, global_size, local_size, 0, NULL, NULL);
     clFinish(queue);

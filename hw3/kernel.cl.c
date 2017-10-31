@@ -4,6 +4,20 @@
 #define SK 16
 #define WIDTH 4
 
+__kernel void mat_mul(
+    const __global float *A, const __global float *B, __global float *C,
+    const int ROW_A, const int COL_A, const int COL_B)
+{
+    const int i = get_global_id(1);
+    const int j = get_global_id(0);
+
+    float sum = 0.0f;
+    for (int k = 0; k < COL_A; ++k) {
+        sum += A[i * COL_A + k] * B[k * COL_B + j];
+    }
+    C[i * COL_B + j] = sum;
+}
+
 __kernel void mat_mul_t64(
     const __global float *A, const __global float *B, __global float *C,
     const int ROW_A, const int COL_A, const int COL_B)

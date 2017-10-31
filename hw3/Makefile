@@ -13,3 +13,6 @@ clean:
 
 run: $(TARGET)
 	thorq --add --mode single --device gpu/7970 ./$(TARGET)
+
+verify: $(TARGET)
+	thorq --add --mode single --device gpu/7970 ./$(TARGET) -v
