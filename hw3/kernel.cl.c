@@ -18,6 +18,51 @@ __kernel void mat_mul(
     C[i * COL_B + j] = sum;
 }
 
+__kernel void mat_mul_t16(
+    const __global float *A, const __global float *B, __global float *C,
+    const int ROW_A, const int COL_A, const int COL_B)
+{
+    const int row = get_local_id(1);
+    const int col = get_local_id(0);
+    const int globalRow = 16 * get_group_id(1) + row;
+    const int globalCol = 16 * get_group_id(0) + col;
+
+    __local float Asub[16][16];
+    __local float Bsub[16][16];
+
+    float acc = 0.0f;
+    float Areg, Breg[16];
+
+    const int numTiles = COL_A >> 4;
+    int t = 0;
+    do {
+        const int tiledRow = 16 * t + row;
+        const int tiledCol = 16 * t + col;
+
+        Asub[row][col] = A[globalRow * COL_A + tiledCol];
+        Bsub[row][col] = B[tiledRow * COL_B + globalCol];
+
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        #pragma unroll
+        for (int k = 0; k < 16; ++k) {
+            Breg[k] = Bsub[k][col];
+        }
+
+        #pragma unroll
+        for (int k = 0; k < 16; ++k) {
+            float Areg = Asub[row][k];
+            acc += Areg * Breg[k];
+        }
+
+        barrier(CLK_LOCAL_MEM_FENCE);
+
+        ++t;
+    } while (t < numTiles);
+
+    C[globalRow * COL_B + globalCol] = acc;
+}
+
 __kernel void mat_mul_t64(
     const __global float *A, const __global float *B, __global float *C,
     const int ROW_A, const int COL_A, const int COL_B)

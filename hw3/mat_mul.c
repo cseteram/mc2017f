@@ -16,7 +16,8 @@
 
 #define N 8192
 // #define BASIC
-#define TILING
+// #define TILING_16
+#define TILING_64
 
 bool print_matrix = false;
 bool validation = false;
@@ -89,7 +90,10 @@ void setup_opencl()
 #ifdef BASIC
     kernel = clCreateKernel(program, "mat_mul", NULL);
 #endif
-#ifdef TILING
+#ifdef TILING_16
+    kernel = clCreateKernel(program, "mat_mul_t16", NULL);
+#endif
+#ifdef TILING_64
     kernel = clCreateKernel(program, "mat_mul_t64", NULL);
 #endif
  
@@ -138,7 +142,11 @@ void mat_mul()
     size_t global_size[] = {R, P};
     size_t local_size[] = {16, 16};
 #endif
-#ifdef TILING
+#ifdef TILING_16
+    size_t global_size[] = {R, P};
+    size_t local_size[] = {16, 16};
+#endif
+#ifdef TILING_64
     size_t global_size[] = {R >> 2, P >> 2};
     size_t local_size[] = {16, 16};
 #endif
