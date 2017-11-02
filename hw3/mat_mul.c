@@ -124,9 +124,9 @@ void mat_mul()
 
     /* Write buffer */
     clEnqueueWriteBuffer(
-        queue, bufA, CL_TRUE, 0, sizeof(float) * N * N, a, 0, NULL, NULL);
+        queue, bufA, CL_FALSE, 0, sizeof(float) * N * N, a, 0, NULL, NULL);
     clEnqueueWriteBuffer(
-        queue, bufB, CL_TRUE, 0, sizeof(float) * N * N, b, 0, NULL, NULL);
+        queue, bufB, CL_FALSE, 0, sizeof(float) * N * N, b, 0, NULL, NULL);
 
     /* Set kernel arguments */
     const int P = N, Q = N, R = N;
@@ -260,6 +260,5 @@ int main(int argc, char **argv) {
     }
 
     printf("Elapsed time: %f sec\n", elapsed_time);
-
     return 0;
 }
