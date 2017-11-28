@@ -40,23 +40,27 @@ char *get_source_code(const char *file_name, size_t *len)
     return source_code;
 }
 
+#define N (1 << 24)
+#define D 2
+#define S (N / D)
+
 /* OpenCL variables */
 cl_platform_id platform;
 cl_device_id device;
 cl_context context;
-cl_command_queue queue;
+cl_command_queue queue[3];
 
 cl_program program;
 cl_kernel kernel;
+cl_event write_event[D], kernel_event[D], read_event[D];
 
-cl_mem bufA, bufB, bufC;
+cl_mem bufA[D], bufB[D], bufC[D];
 
 cl_int err;
 
-#define N (1 << 24)
 int A[N], B[N], C[N];
 
-double write_time, kernel_time, read_time, t;
+double total_time, t;
 
 int main()
 {
@@ -64,7 +68,8 @@ int main()
     clGetPlatformIDs(1, &platform, NULL);
     clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, NULL);
     context = clCreateContext(NULL, 1, &device, NULL, NULL, NULL);
-    queue = clCreateCommandQueue(context, device, 0, NULL);
+    for (int i = 0; i < 3; i++)
+        queue[i] = clCreateCommandQueue(context, device, 0, NULL);
 
     /* Compile the kernel code */
     size_t source_size;
@@ -94,40 +99,53 @@ int main()
     }
  
     /* Create buffer */
-    bufA = clCreateBuffer(
-        context, CL_MEM_READ_ONLY, sizeof(int) * N, NULL, NULL);
-    bufB = clCreateBuffer(
-        context, CL_MEM_READ_ONLY, sizeof(int) * N, NULL, NULL);
-    bufC = clCreateBuffer(
-        context, CL_MEM_WRITE_ONLY, sizeof(int) * N, NULL, NULL);
+    for (int i = 0; i < D; i++) {
+        bufA[i] = clCreateBuffer(
+            context, CL_MEM_READ_ONLY, sizeof(int) * S, NULL, NULL);
+        bufB[i] = clCreateBuffer(
+            context, CL_MEM_READ_ONLY, sizeof(int) * S, NULL, NULL);
+        bufC[i] = clCreateBuffer(
+            context, CL_MEM_WRITE_ONLY, sizeof(int) * S, NULL, NULL);
+    }
+
+    t = get_time();
 
     /* Write buffer */
-    t = get_time();
-    clEnqueueWriteBuffer(
-        queue, bufA, CL_FALSE, 0, sizeof(int) * N, A, 0, NULL, NULL);
-    clEnqueueWriteBuffer(
-        queue, bufB, CL_FALSE, 0, sizeof(int) * N, B, 0, NULL, NULL);
-    write_time = get_time() - t;
+    for (int i = 0; i < D; i++) {
+        clEnqueueWriteBuffer(
+            queue[0], bufA[i], CL_FALSE, 0, sizeof(int) * S, A + i * S,
+            0, NULL, &write_event[i]
+        );
+        clEnqueueWriteBuffer(
+            queue[0], bufB[i], CL_FALSE, 0, sizeof(int) * S, B + i * S,
+            0, NULL, &write_event[i]
+        );
+    }
 
-    /* Set kernel arguments */
-    clSetKernelArg(kernel, 0, sizeof(cl_mem), &bufA);
-    clSetKernelArg(kernel, 1, sizeof(cl_mem), &bufB);
-    clSetKernelArg(kernel, 2, sizeof(cl_mem), &bufC);
+    /* Set kernel arguments & Launch the kernel */
+    for (int i = 0; i < D; i++) {
+        clSetKernelArg(kernel, 0, sizeof(cl_mem), &bufA[i]);
+        clSetKernelArg(kernel, 1, sizeof(cl_mem), &bufB[i]);
+        clSetKernelArg(kernel, 2, sizeof(cl_mem), &bufC[i]);
 
-    /* Launch the kernel */
-    t = get_time();
-    size_t global_size = N;
-    size_t local_size = 256;
-    clEnqueueNDRangeKernel(
-        queue, kernel, 1, NULL, &global_size, &local_size, 0, NULL, NULL);
-    clFinish(queue);
-    kernel_time = get_time() - t;
+        /* Launch the kernel */
+        size_t global_size = S;
+        size_t local_size = 256;
+        clEnqueueNDRangeKernel(
+            queue[1], kernel, 1, NULL, &global_size, &local_size,
+            1, &write_event[i], &kernel_event[i]
+        );
+    }
 
     /* Read buffer */
-    t = get_time();
-    clEnqueueReadBuffer(
-        queue, bufC, CL_TRUE, 0, sizeof(int) * N, C, 0, NULL, NULL);
-    read_time = get_time() - t;
+    for (int i = 0; i < D; i++) {
+        clEnqueueReadBuffer(
+            queue[2], bufC[i], CL_TRUE, 0, sizeof(int) * S, C + i * S,
+            1, &kernel_event[i], &read_event[i]
+        );
+    }
+
+    total_time = get_time() - t;
 
     /* Verification */
     for (int i = 0; i < N; i++) {
@@ -139,19 +157,22 @@ int main()
     }
 
     /* Release OpenCL object */
-    clReleaseMemObject(bufA);
-    clReleaseMemObject(bufB);
-    clReleaseMemObject(bufC);
+    for (int i = 0; i < D; i++) {
+        clReleaseMemObject(bufA[i]);
+        clReleaseMemObject(bufB[i]);
+        clReleaseMemObject(bufC[i]);
+
+        clReleaseEvent(write_event[i]);
+        clReleaseEvent(kernel_event[i]);
+        clReleaseEvent(read_event[i]);
+    }
     clReleaseContext(context);
-    clReleaseCommandQueue(queue);
+    for (int i = 0; i < 3; i++)
+        clReleaseCommandQueue(queue[i]);
     clReleaseProgram(program);
     clReleaseKernel(kernel);
 
-    printf("write buffer: %f seconds\n", write_time);
-    printf("kernel: %f seconds\n", kernel_time);
-    printf("read buffer: %f seconds\n\n", read_time);
-
-    printf("total elapsed time: %f seconds\n", write_time + kernel_time + read_time);
+    printf("total elapsed time: %f seconds\n", total_time);
     printf("Finished!\n");
     return 0;
 }

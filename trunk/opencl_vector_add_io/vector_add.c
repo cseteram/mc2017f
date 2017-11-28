@@ -116,7 +116,7 @@ int main()
 
     /* Launch the kernel */
     t = get_time();
-    size_t global_size = N;
+    size_t global_size = N / 4;
     size_t local_size = 256;
     clEnqueueNDRangeKernel(
         queue, kernel, 1, NULL, &global_size, &local_size, 0, NULL, NULL);
