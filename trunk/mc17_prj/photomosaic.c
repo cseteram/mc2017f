@@ -1,9 +1,15 @@
 #include "photomosaic.h"
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <limits.h>
 
 void photomosaic(unsigned char *img, int width, int height, unsigned char *dataset, int *idx) {
     int swidth = width / 32, sheight = height / 32;
+
+    FILE *out = fopen("stats.txt", "w");
+    int *diff = (int*)malloc(sizeof(int) * swidth * sheight);
+
     for (int sh = 0; sh < sheight; ++sh) {
         for (int sw = 0; sw < swidth; ++sw) {
             int min_diff = INT_MAX, min_i = -1;
@@ -23,6 +29,13 @@ void photomosaic(unsigned char *img, int width, int height, unsigned char *datas
                 }
             }
             idx[sh * swidth + sw] = min_i;
+            diff[sh * swidth + sw] = min_diff;
+        }
+    }
+
+    for (int sh = 0; sh < sheight; ++sh) {
+        for (int sw = 0; sw < swidth; ++sw) {
+            fprintf(out, "%d %d\n", idx[sh * swidth + sw], diff[sh * swidth + sw]);
         }
     }
 }
