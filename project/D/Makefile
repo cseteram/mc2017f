@@ -1,7 +1,8 @@
+CC=mpicc
 TARGET=main
 OBJECTS=photomosaic.o qdbmp.o timer.o
 
-CFLAGS=-std=c99 -O2 -Wall
+CFLAGS=-std=c99 -O3 -Wall -lOpenCL -fopenmp
 LDFLAGS=-lm
 
 all: $(TARGET)
@@ -12,4 +13,4 @@ clean:
 	rm -rf $(TARGET) $(OBJECTS)
 
 run: $(TARGET)
-	thorq --add ./$(TARGET)
+	thorq --add --mode mpi --nodes 4 --slots 1 --device gpu/7970 ./$(TARGET) $(INPUT) $(OUTPUT)

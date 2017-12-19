@@ -1,6 +1,6 @@
 #include <sys/time.h>
 
-#define N 8
+#define N 16
 
 static double start_time[N];
 
